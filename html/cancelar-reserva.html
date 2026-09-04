@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cancelar reserva — AERO FJF</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <main>
+    <div class="page-narrow">
+      <div class="card" id="contenido">
+        <h1>Cancelar reserva</h1>
+        <div id="vista-confirmacion">
+          <p>¿Estás seguro de que deseas cancelar la siguiente reserva? Los asientos serán liberados.</p>
+          <div class="summary-line"><span>Código</span><span id="c-codigo"></span></div>
+          <div class="summary-line"><span>Vuelo</span><span id="c-vuelo"></span></div>
+          <div class="summary-line"><span>Asientos</span><span id="c-asientos"></span></div>
+          <div class="summary-line total"><span>Total pagado</span><span id="c-total"></span></div>
+
+          <button id="btn-confirmar-cancelar" class="btn btn-danger btn-block" style="margin-top:18px;">Sí, cancelar reserva</button>
+          <a href="historial-reservas.html" class="btn btn-secondary btn-block" style="margin-top:10px;">Volver sin cancelar</a>
+        </div>
+
+        <div id="vista-exito" hidden>
+          <div class="alert alert-success">La reserva fue cancelada correctamente y los asientos quedaron disponibles nuevamente.</div>
+          <a href="historial-reservas.html" class="btn btn-primary btn-block">Volver a mis reservas</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>AERO FJF &copy; 2026 — Proyecto académico DSY1104</p>
+  </footer>
+
+  <script src="../js/users.js"></script>
+  <script src="../js/flights.js"></script>
+  <script src="../js/seats.js"></script>
+  <script src="../js/reservations.js"></script>
+  <script src="../js/validations.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    // Al cargar la página: exige sesión, busca la reserva y muestra el
+    // resumen a confirmar antes de cancelarla.
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = requireAuth();
+      if (!user) return;
+
+      const reservaId = getQueryParam('reservaId');
+      const reserva = getReservationById(reservaId);
+
+      if (!reserva || reserva.usuarioEmail !== user.email) {
+        showToast('Reserva no encontrada.', 'danger');
+        setTimeout(() => location.href = 'historial-reservas.html', 800);
+        return;
+      }
+
+      if (reserva.estado === 'cancelada') {
+        showToast('Esta reserva ya fue cancelada.', 'danger');
+        setTimeout(() => location.href = 'historial-reservas.html', 800);
+        return;
+      }
+
+      const vuelo = getFlightById(reserva.vueloId);
+      document.getElementById('c-codigo').textContent = reserva.id;
+      document.getElementById('c-vuelo').textContent = vuelo ? `${vuelo.codigo} · ${vuelo.origen} → ${vuelo.destino}` : '—';
+      document.getElementById('c-asientos').textContent = reserva.asientos.join(', ');
+      document.getElementById('c-total').textContent = formatCLP(reserva.totalPagado);
+
+      // Pide confirmación final y, de aceptar, cancela la reserva y muestra el mensaje de éxito.
+      document.getElementById('btn-confirmar-cancelar').addEventListener('click', () => {
+        if (!confirmDialog('¿Confirmas la cancelación de esta reserva? Esta acción no se puede deshacer.')) return;
+        cancelReservation(reserva.id);
+        document.getElementById('vista-confirmacion').hidden = true;
+        document.getElementById('vista-exito').hidden = false;
+      });
+    });
+  </script>
+</body>
+</html>

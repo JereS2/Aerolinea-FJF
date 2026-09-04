@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pago y reserva — AERO FJF</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <main>
+    <div class="page">
+      <div class="page-title"><h1>Pago y reserva</h1></div>
+
+      <div class="form-row">
+        <div class="card">
+          <h2>Resumen de compra</h2>
+          <div class="summary-line"><span>Vuelo</span><span id="r-vuelo"></span></div>
+          <div class="summary-line"><span>Asientos</span><span id="r-asientos"></span></div>
+          <div class="summary-line"><span>Equipaje de mano</span><span id="r-mano"></span></div>
+          <div class="summary-line"><span>Equipaje de bodega</span><span id="r-bodega"></span></div>
+          <div class="summary-line total"><span>Total a pagar</span><span id="r-total"></span></div>
+        </div>
+
+        <div class="card">
+          <h2>Tarjeta bancaria (simulada)</h2>
+          <form id="form-pago" novalidate>
+            <div class="form-group">
+              <label for="numero-tarjeta">Número de tarjeta</label>
+              <input type="text" id="numero-tarjeta" maxlength="19" placeholder="0000 0000 0000 0000" inputmode="numeric">
+              <span class="error-message"></span>
+            </div>
+            <div class="form-group">
+              <label for="titular">Nombre del titular</label>
+              <input type="text" id="titular">
+              <span class="error-message"></span>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="vencimiento">Vencimiento (MM/AA)</label>
+                <input type="text" id="vencimiento" maxlength="5" placeholder="MM/AA">
+                <span class="error-message"></span>
+              </div>
+              <div class="form-group">
+                <label for="cvv">CVV</label>
+                <input type="text" id="cvv" maxlength="4" placeholder="123" inputmode="numeric">
+                <span class="error-message"></span>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-accent btn-block">Confirmar compra</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>AERO FJF &copy; 2026 — Proyecto académico DSY1104</p>
+  </footer>
+
+  <script src="../js/users.js"></script>
+  <script src="../js/flights.js"></script>
+  <script src="../js/seats.js"></script>
+  <script src="../js/reservations.js"></script>
+  <script src="../js/validations.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    // Al cargar la página: exige sesión, muestra el resumen de la compra
+    // y prepara el formulario de pago (formateo y validación).
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = requireAuth();
+      if (!user) return;
+
+      const cart = getData(STORAGE_KEYS.CART);
+      if (!cart || !cart.vueloId) {
+        showToast('No hay una compra en curso.', 'danger');
+        setTimeout(() => location.href = 'buscar-vuelos.html', 800);
+        return;
+      }
+
+      const vuelo = getFlightById(cart.vueloId);
+      const subtotalAsientos = cart.asientos.length * vuelo.precio;
+      const costoEquipaje = (cart.equipajeBodega || 0) * PRECIO_EQUIPAJE_BODEGA;
+      const total = subtotalAsientos + costoEquipaje;
+
+      document.getElementById('r-vuelo').textContent = `${vuelo.codigo} · ${vuelo.origen} → ${vuelo.destino}`;
+      document.getElementById('r-asientos').textContent = cart.asientos.join(', ');
+      document.getElementById('r-mano').textContent = cart.equipajeMano ? 'Incluida' : 'No';
+      document.getElementById('r-bodega').textContent = cart.equipajeBodega
+        ? `${cart.equipajeBodega} maleta(s) — ${formatCLP(costoEquipaje)}`
+        : 'No';
+      document.getElementById('r-total').textContent = formatCLP(total);
+
+      const numeroInput = document.getElementById('numero-tarjeta');
+      const titularInput = document.getElementById('titular');
+      const vencInput = document.getElementById('vencimiento');
+      const cvvInput = document.getElementById('cvv');
+
+      // Formatea el número de tarjeta en grupos de 4 dígitos mientras se escribe.
+      numeroInput.addEventListener('input', () => {
+        let digits = numeroInput.value.replace(/\D/g, '').slice(0, 16);
+        numeroInput.value = digits.replace(/(.{4})/g, '$1 ').trim();
+      });
+
+      // Formatea la fecha de vencimiento como MM/AA mientras se escribe.
+      vencInput.addEventListener('input', () => {
+        let digits = vencInput.value.replace(/\D/g, '').slice(0, 4);
+        if (digits.length >= 3) digits = digits.slice(0, 2) + '/' + digits.slice(2);
+        vencInput.value = digits;
+      });
+
+      // Permite solo dígitos (máx. 4) en el CVV.
+      cvvInput.addEventListener('input', () => {
+        cvvInput.value = cvvInput.value.replace(/\D/g, '').slice(0, 4);
+      });
+
+      // Al enviar el formulario: valida los datos de la tarjeta y, si son
+      // correctos, crea la reserva y redirige al pase de abordar.
+      document.getElementById('form-pago').addEventListener('submit', (e) => {
+        e.preventDefault();
+        let valid = true;
+
+        if (!isValidCardNumber(numeroInput.value)) {
+          setFieldError(numeroInput, 'Ingresa un número de tarjeta válido de 16 dígitos.');
+          valid = false;
+        } else {
+          clearFieldError(numeroInput);
+        }
+
+        if (!isRequired(titularInput.value)) {
+          setFieldError(titularInput, 'El nombre del titular es obligatorio.');
+          valid = false;
+        } else {
+          clearFieldError(titularInput);
+        }
+
+        if (!isValidExpiry(vencInput.value)) {
+          setFieldError(vencInput, 'Formato inválido o tarjeta vencida (MM/AA).');
+          valid = false;
+        } else {
+          clearFieldError(vencInput);
+        }
+
+        if (!isValidCVV(cvvInput.value)) {
+          setFieldError(cvvInput, 'CVV inválido (3 o 4 dígitos).');
+          valid = false;
+        } else {
+          clearFieldError(cvvInput);
+        }
+
+        if (!valid) return;
+
+        const reserva = createReservation({
+          usuarioEmail: user.email,
+          vueloId: vuelo.id,
+          asientos: cart.asientos,
+          equipajeMano: cart.equipajeMano,
+          equipajeBodega: cart.equipajeBodega,
+          totalPagado: total
+        });
+
+        localStorage.removeItem(STORAGE_KEYS.CART);
+        showToast('¡Compra confirmada!', 'success');
+        setTimeout(() => {
+          location.href = `pase-abordar.html?reservaId=${encodeURIComponent(reserva.id)}`;
+        }, 500);
+      });
+    });
+  </script>
+</body>
+</html>

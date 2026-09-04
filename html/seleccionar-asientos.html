@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seleccionar asientos — AERO FJF</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <main>
+    <div class="page">
+      <div class="page-title">
+        <h1 id="titulo-vuelo">Selecciona tus asientos</h1>
+      </div>
+
+      <div class="plane-wrapper">
+        <div class="seat-legend">
+          <span><span class="legend-swatch legend-disponible"></span> Disponible</span>
+          <span><span class="legend-swatch legend-ocupado"></span> Ocupado</span>
+          <span><span class="legend-swatch legend-seleccionado"></span> Seleccionado</span>
+        </div>
+
+        <div class="seat-map" id="seat-map"></div>
+
+        <div class="selection-summary">
+          <h3>Resumen de selección</h3>
+          <div class="summary-line">
+            <span>Asientos elegidos</span>
+            <span id="resumen-asientos">Ninguno</span>
+          </div>
+          <div class="summary-line total">
+            <span>Total</span>
+            <span id="resumen-total">$0</span>
+          </div>
+          <button id="btn-continuar" class="btn btn-accent btn-block" style="margin-top:14px;" disabled>Continuar a equipaje</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>AERO FJF &copy; 2026 — Proyecto académico DSY1104</p>
+  </footer>
+
+  <script src="../js/users.js"></script>
+  <script src="../js/flights.js"></script>
+  <script src="../js/seats.js"></script>
+  <script src="../js/reservations.js"></script>
+  <script src="../js/validations.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    // Al cargar la página: exige sesión y muestra el mapa de asientos
+    // interactivo del vuelo elegido.
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!requireAuth()) return;
+
+      const vueloId = getQueryParam('vueloId');
+      const vuelo = getFlightById(vueloId);
+      if (!vuelo) {
+        showToast('Vuelo no encontrado.', 'danger');
+        setTimeout(() => location.href = 'buscar-vuelos.html', 800);
+        return;
+      }
+
+      document.getElementById('titulo-vuelo').textContent =
+        `${vuelo.codigo} · ${vuelo.origen} → ${vuelo.destino} · ${formatDate(vuelo.fechaSalida)} ${vuelo.horaSalida}`;
+
+      const seatInfo = getSeatsForFlight(vuelo.id);
+      const seatMapEl = document.getElementById('seat-map');
+      const seleccionados = new Set();
+
+      const filas = {};
+      seatInfo.asientos.forEach(a => {
+        filas[a.fila] = filas[a.fila] || [];
+        filas[a.fila].push(a);
+      });
+
+      // Dibuja el mapa de asientos, marcando ocupados y seleccionados,
+      // y engancha el clic para alternar la selección de cada asiento.
+      function renderMapa() {
+        seatMapEl.innerHTML = '';
+        Object.keys(filas).map(Number).sort((a, b) => a - b).forEach(numFila => {
+          const row = document.createElement('div');
+          row.className = 'seat-row';
+          row.innerHTML = `<span class="seat-row-label">${numFila}</span>`;
+          filas[numFila].forEach(asiento => {
+            if (asiento.columna === 'D') {
+              const aisle = document.createElement('span');
+              aisle.className = 'seat-aisle';
+              row.appendChild(aisle);
+            }
+            const codigo = seatCode(asiento);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'seat';
+            btn.textContent = codigo;
+            btn.title = `Asiento ${codigo}`;
+
+            if (asiento.estado === 'ocupado') {
+              btn.classList.add('ocupado');
+              btn.disabled = true;
+            } else if (seleccionados.has(codigo)) {
+              btn.classList.add('seleccionado');
+            }
+
+            btn.addEventListener('click', () => {
+              if (seleccionados.has(codigo)) {
+                seleccionados.delete(codigo);
+              } else {
+                seleccionados.add(codigo);
+              }
+              renderMapa();
+              renderResumen();
+            });
+
+            row.appendChild(btn);
+          });
+          seatMapEl.appendChild(row);
+        });
+      }
+
+      // Actualiza el resumen (asientos elegidos y total) y habilita/deshabilita "Continuar".
+      function renderResumen() {
+        const lista = Array.from(seleccionados).sort();
+        document.getElementById('resumen-asientos').textContent = lista.length ? lista.join(', ') : 'Ninguno';
+        document.getElementById('resumen-total').textContent = formatCLP(lista.length * vuelo.precio);
+        document.getElementById('btn-continuar').disabled = lista.length === 0;
+      }
+
+      // Guarda la selección en el carrito y continúa al paso de equipaje.
+      document.getElementById('btn-continuar').addEventListener('click', () => {
+        const cart = {
+          vueloId: vuelo.id,
+          asientos: Array.from(seleccionados).sort(),
+          equipajeMano: true,
+          equipajeBodega: 0
+        };
+        setData(STORAGE_KEYS.CART, cart);
+        location.href = 'equipaje.html';
+      });
+
+      renderMapa();
+      renderResumen();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel administrativo — AERO FJF</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <aside class="admin-sidebar" id="admin-sidebar"></aside>
+    <div class="admin-content">
+      <h1 id="bienvenida">Bienvenido</h1>
+      <p class="subtitle">Panel de administración de vuelos y reservas de AERO FJF.</p>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-vuelos">0</div>
+          <div class="stat-label">Vuelos registrados</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-reservas">0</div>
+          <div class="stat-label">Reservas confirmadas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-usuarios">0</div>
+          <div class="stat-label">Usuarios registrados</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Acciones rápidas</h2>
+        <div class="actions-cell">
+          <a href="vuelos.html" class="btn btn-primary">Ver listado de vuelos</a>
+          <a href="nuevo-vuelo.html" class="btn btn-accent">Crear nuevo vuelo</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/users.js"></script>
+  <script src="../js/flights.js"></script>
+  <script src="../js/seats.js"></script>
+  <script src="../js/reservations.js"></script>
+  <script src="../js/validations.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    // Al cargar la página: valida sesión admin y muestra estadísticas
+    // generales (vuelos, reservas confirmadas y usuarios registrados).
+    document.addEventListener('DOMContentLoaded', () => {
+      const admin = requireAdmin();
+      if (!admin) return;
+
+      renderAdminSidebar('inicio');
+      document.getElementById('bienvenida').textContent = `Bienvenido, ${admin.nombre}`;
+      document.getElementById('stat-vuelos').textContent = getFlights().length;
+      document.getElementById('stat-reservas').textContent = getReservations().filter(r => r.estado === 'confirmada').length;
+      document.getElementById('stat-usuarios').textContent = getUsers().length;
+    });
+  </script>
+</body>
+</html>

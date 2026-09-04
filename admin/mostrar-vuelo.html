@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detalle de vuelo — AERO FJF</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <aside class="admin-sidebar" id="admin-sidebar"></aside>
+    <div class="admin-content">
+      <div class="page-title">
+        <h1 id="titulo">Detalle de vuelo</h1>
+        <div class="actions-cell">
+          <a href="#" id="link-editar" class="btn btn-primary">Editar</a>
+          <a href="vuelos.html" class="btn btn-secondary">Volver</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="boarding-pass-grid" style="color:inherit;">
+          <div><span style="opacity:.6;">Código</span><strong id="d-codigo"></strong></div>
+          <div><span style="opacity:.6;">Ruta</span><strong id="d-ruta"></strong></div>
+          <div><span style="opacity:.6;">Fecha y hora</span><strong id="d-fecha"></strong></div>
+          <div><span style="opacity:.6;">Capacidad</span><strong id="d-capacidad"></strong></div>
+          <div><span style="opacity:.6;">Asientos disponibles</span><strong id="d-disponibles"></strong></div>
+          <div><span style="opacity:.6;">Precio base</span><strong id="d-precio"></strong></div>
+        </div>
+        <p id="d-descripcion" class="help-text"></p>
+      </div>
+
+      <div class="card">
+        <h2>Mapa de asientos</h2>
+        <div class="plane-wrapper">
+          <div class="seat-legend">
+            <span><span class="legend-swatch legend-disponible"></span> Disponible</span>
+            <span><span class="legend-swatch legend-ocupado"></span> Ocupado</span>
+          </div>
+          <div class="seat-map" id="seat-map"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Reservas de este vuelo</h2>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Pasajero</th>
+                <th>Asientos</th>
+                <th>Total</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-reservas"></tbody>
+          </table>
+        </div>
+        <p class="empty-state" id="empty-state" hidden>Este vuelo aún no tiene reservas.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/users.js"></script>
+  <script src="../js/flights.js"></script>
+  <script src="../js/seats.js"></script>
+  <script src="../js/reservations.js"></script>
+  <script src="../js/validations.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    // Al cargar la página: valida sesión admin y muestra el detalle del
+    // vuelo, su mapa de asientos y las reservas asociadas.
+    document.addEventListener('DOMContentLoaded', () => {
+      const admin = requireAdmin();
+      if (!admin) return;
+      renderAdminSidebar('vuelos');
+
+      const flightId = getQueryParam('id');
+      const vuelo = getFlightById(flightId);
+      if (!vuelo) {
+        showToast('Vuelo no encontrado.', 'danger');
+        setTimeout(() => location.href = 'vuelos.html', 700);
+        return;
+      }
+
+      document.getElementById('titulo').textContent = `Vuelo ${vuelo.codigo}`;
+      document.getElementById('link-editar').href = `editar-vuelo.html?id=${vuelo.id}`;
+      document.getElementById('d-codigo').textContent = vuelo.codigo;
+      document.getElementById('d-ruta').textContent = `${vuelo.origen} → ${vuelo.destino}`;
+      document.getElementById('d-fecha').textContent = `${formatDate(vuelo.fechaSalida)} ${vuelo.horaSalida}`;
+      document.getElementById('d-capacidad').textContent = vuelo.capacidad;
+      document.getElementById('d-disponibles').textContent = vuelo.asientosDisponibles;
+      document.getElementById('d-precio').textContent = formatCLP(vuelo.precio);
+      document.getElementById('d-descripcion').textContent = vuelo.descripcion || 'Sin descripción.';
+
+      const seatInfo = getSeatsForFlight(vuelo.id);
+      const seatMapEl = document.getElementById('seat-map');
+      if (seatInfo) {
+        const filas = {};
+        seatInfo.asientos.forEach(a => {
+          filas[a.fila] = filas[a.fila] || [];
+          filas[a.fila].push(a);
+        });
+        Object.keys(filas).map(Number).sort((a, b) => a - b).forEach(numFila => {
+          const row = document.createElement('div');
+          row.className = 'seat-row';
+          row.innerHTML = `<span class="seat-row-label">${numFila}</span>`;
+          filas[numFila].forEach(asiento => {
+            if (asiento.columna === 'D') {
+              const aisle = document.createElement('span');
+              aisle.className = 'seat-aisle';
+              row.appendChild(aisle);
+            }
+            const span = document.createElement('span');
+            span.className = `seat ${asiento.estado === 'ocupado' ? 'ocupado' : ''}`;
+            span.style.display = 'inline-flex';
+            span.style.alignItems = 'center';
+            span.style.justifyContent = 'center';
+            span.textContent = seatCode(asiento);
+            row.appendChild(span);
+          });
+          seatMapEl.appendChild(row);
+        });
+      }
+
+      const tbody = document.getElementById('tabla-reservas');
+      const reservas = getReservationsByFlight(vuelo.id);
+      document.getElementById('empty-state').hidden = reservas.length > 0;
+      reservas.forEach(r => {
+        const pasajero = findUserByEmail(r.usuarioEmail);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${r.id}</strong></td>
+          <td>${pasajero ? pasajero.nombre : r.usuarioEmail}</td>
+          <td>${r.asientos.join(', ')}</td>
+          <td>${formatCLP(r.totalPagado)}</td>
+          <td><span class="badge ${r.estado === 'confirmada' ? 'badge-success' : 'badge-danger'}">${r.estado}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    });
+  </script>
+</body>
+</html>

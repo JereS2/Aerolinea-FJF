@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de vuelos — AERO FJF</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <aside class="admin-sidebar" id="admin-sidebar"></aside>
+    <div class="admin-content">
+      <div class="page-title">
+        <h1>Vuelos</h1>
+        <a href="nuevo-vuelo.html" class="btn btn-accent">+ Nuevo vuelo</a>
+      </div>
+
+      <div class="card">
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Origen</th>
+                <th>Destino</th>
+                <th>Salida</th>
+                <th>Capacidad</th>
+                <th>Disponibles</th>
+                <th>Precio</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tabla-vuelos"></tbody>
+          </table>
+        </div>
+        <p class="empty-state" id="empty-state" hidden>No hay vuelos registrados.</p>
+        <div class="pagination" id="paginacion"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/users.js"></script>
+  <script src="../js/flights.js"></script>
+  <script src="../js/seats.js"></script>
+  <script src="../js/reservations.js"></script>
+  <script src="../js/validations.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    // Al cargar la página: valida sesión admin y prepara la tabla de vuelos.
+    document.addEventListener('DOMContentLoaded', () => {
+      const admin = requireAdmin();
+      if (!admin) return;
+      renderAdminSidebar('vuelos');
+
+      const POR_PAGINA = 5;
+      let paginaActual = 1;
+      const tbody = document.getElementById('tabla-vuelos');
+      const emptyState = document.getElementById('empty-state');
+      const paginacionEl = document.getElementById('paginacion');
+
+      // Dibuja la página actual de la tabla de vuelos y engancha las
+      // acciones de ver, editar, eliminar y cambio de página.
+      function render() {
+        const vuelos = getFlights().sort((a, b) => a.fechaSalida.localeCompare(b.fechaSalida));
+        const totalPaginas = Math.max(1, Math.ceil(vuelos.length / POR_PAGINA));
+        paginaActual = Math.min(paginaActual, totalPaginas);
+        const inicio = (paginaActual - 1) * POR_PAGINA;
+        const pagina = vuelos.slice(inicio, inicio + POR_PAGINA);
+
+        tbody.innerHTML = '';
+        emptyState.hidden = vuelos.length > 0;
+
+        pagina.forEach(f => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${f.codigo}</strong></td>
+            <td>${f.origen}</td>
+            <td>${f.destino}</td>
+            <td>${formatDate(f.fechaSalida)} ${f.horaSalida}</td>
+            <td>${f.capacidad}</td>
+            <td>${f.asientosDisponibles}</td>
+            <td>${formatCLP(f.precio)}</td>
+            <td class="actions-cell">
+              <button class="btn btn-secondary btn-sm" data-ver="${f.id}">Detalle</button>
+              <button class="btn btn-primary btn-sm" data-editar="${f.id}">Editar</button>
+              <button class="btn btn-danger btn-sm" data-eliminar="${f.id}">Eliminar</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll('button[data-ver]').forEach(btn => {
+          btn.addEventListener('click', () => location.href = `mostrar-vuelo.html?id=${btn.dataset.ver}`);
+        });
+        tbody.querySelectorAll('button[data-editar]').forEach(btn => {
+          btn.addEventListener('click', () => location.href = `editar-vuelo.html?id=${btn.dataset.editar}`);
+        });
+        tbody.querySelectorAll('button[data-eliminar]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (!confirmDialog('¿Eliminar este vuelo? Se eliminará también su mapa de asientos.')) return;
+            deleteFlight(btn.dataset.eliminar);
+            showToast('Vuelo eliminado.', 'success');
+            render();
+          });
+        });
+
+        paginacionEl.innerHTML = '';
+        for (let i = 1; i <= totalPaginas; i++) {
+          const btn = document.createElement('button');
+          btn.textContent = i;
+          if (i === paginaActual) btn.classList.add('active');
+          btn.addEventListener('click', () => { paginaActual = i; render(); });
+          paginacionEl.appendChild(btn);
+        }
+      }
+
+      render();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Equipaje — AERO FJF</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <main>
+    <div class="page-narrow">
+      <div class="card">
+        <h1>Selecciona tu equipaje</h1>
+        <p class="subtitle" id="resumen-vuelo"></p>
+
+        <div class="form-group">
+          <div class="checkbox-row">
+            <input type="checkbox" id="equipaje-mano" checked>
+            <label for="equipaje-mano" style="margin:0;">Maleta de mano (incluida sin costo)</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="checkbox-row">
+            <input type="checkbox" id="equipaje-bodega-check">
+            <label for="equipaje-bodega-check" style="margin:0;">Agregar equipaje de bodega</label>
+          </div>
+        </div>
+
+        <div class="form-group" id="grupo-cantidad" hidden>
+          <label for="equipaje-bodega-cantidad">Cantidad de maletas</label>
+          <input type="number" id="equipaje-bodega-cantidad" min="1" max="5" value="1">
+          <span class="help-text" id="precio-unitario"></span>
+        </div>
+
+        <div class="summary-line">
+          <span>Asientos</span>
+          <span id="linea-asientos"></span>
+        </div>
+        <div class="summary-line">
+          <span>Equipaje adicional</span>
+          <span id="linea-equipaje">$0</span>
+        </div>
+        <div class="summary-line total">
+          <span>Total</span>
+          <span id="linea-total"></span>
+        </div>
+
+        <button id="btn-continuar" class="btn btn-accent btn-block" style="margin-top:16px;">Continuar al pago</button>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>AERO FJF &copy; 2026 — Proyecto académico DSY1104</p>
+  </footer>
+
+  <script src="../js/users.js"></script>
+  <script src="../js/flights.js"></script>
+  <script src="../js/seats.js"></script>
+  <script src="../js/reservations.js"></script>
+  <script src="../js/validations.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    // Al cargar la página: exige sesión, valida que exista un carrito con
+    // asientos elegidos y prepara el resumen de equipaje.
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!requireAuth()) return;
+
+      const cart = getData(STORAGE_KEYS.CART);
+      if (!cart || !cart.vueloId) {
+        showToast('No hay una selección de asientos activa.', 'danger');
+        setTimeout(() => location.href = 'buscar-vuelos.html', 800);
+        return;
+      }
+
+      const vuelo = getFlightById(cart.vueloId);
+      document.getElementById('resumen-vuelo').textContent =
+        `${vuelo.codigo} · ${vuelo.origen} → ${vuelo.destino} · Asientos: ${cart.asientos.join(', ')}`;
+      document.getElementById('linea-asientos').textContent =
+        `${cart.asientos.length} x ${formatCLP(vuelo.precio)} = ${formatCLP(cart.asientos.length * vuelo.precio)}`;
+      document.getElementById('precio-unitario').textContent = `${formatCLP(PRECIO_EQUIPAJE_BODEGA)} por maleta`;
+
+      const manoCheck = document.getElementById('equipaje-mano');
+      const bodegaCheck = document.getElementById('equipaje-bodega-check');
+      const grupoCantidad = document.getElementById('grupo-cantidad');
+      const cantidadInput = document.getElementById('equipaje-bodega-cantidad');
+
+      // Recalcula subtotal de asientos, costo de equipaje y total, y actualiza el resumen en pantalla.
+      function calcularTotales() {
+        const subtotalAsientos = cart.asientos.length * vuelo.precio;
+        const cantidadBodega = bodegaCheck.checked ? Math.max(1, Number(cantidadInput.value) || 1) : 0;
+        const costoEquipaje = cantidadBodega * PRECIO_EQUIPAJE_BODEGA;
+        document.getElementById('linea-equipaje').textContent = formatCLP(costoEquipaje);
+        document.getElementById('linea-total').textContent = formatCLP(subtotalAsientos + costoEquipaje);
+        return { subtotalAsientos, costoEquipaje, cantidadBodega };
+      }
+
+      bodegaCheck.addEventListener('change', () => {
+        grupoCantidad.hidden = !bodegaCheck.checked;
+        calcularTotales();
+      });
+      cantidadInput.addEventListener('input', calcularTotales);
+
+      // Guarda las opciones de equipaje elegidas en el carrito y avanza al pago.
+      document.getElementById('btn-continuar').addEventListener('click', () => {
+        const { cantidadBodega } = calcularTotales();
+        cart.equipajeMano = manoCheck.checked;
+        cart.equipajeBodega = cantidadBodega;
+        setData(STORAGE_KEYS.CART, cart);
+        location.href = 'pago-reserva.html';
+      });
+
+      calcularTotales();
+    });
+  </script>
+</body>
+</html>

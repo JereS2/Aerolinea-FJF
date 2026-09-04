@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nuevo vuelo — AERO FJF</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <aside class="admin-sidebar" id="admin-sidebar"></aside>
+    <div class="admin-content">
+      <div class="page-title"><h1>Nuevo vuelo</h1></div>
+
+      <div class="card" style="max-width:640px;">
+        <form id="form-vuelo" novalidate>
+          <div class="form-group">
+            <label for="codigo">Código de vuelo</label>
+            <input type="text" id="codigo" minlength="3" placeholder="Ej: AA101">
+            <span class="error-message"></span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="origen">Origen</label>
+              <select id="origen"><option value="">Selecciona</option></select>
+              <span class="error-message"></span>
+            </div>
+            <div class="form-group">
+              <label for="destino">Destino</label>
+              <select id="destino"><option value="">Selecciona</option></select>
+              <span class="error-message"></span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="fechaSalida">Fecha de salida</label>
+              <input type="date" id="fechaSalida">
+              <span class="error-message"></span>
+            </div>
+            <div class="form-group">
+              <label for="horaSalida">Hora de salida</label>
+              <input type="time" id="horaSalida">
+              <span class="error-message"></span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="capacidad">Capacidad del avión</label>
+              <input type="number" id="capacidad" min="10" step="1">
+              <span class="error-message"></span>
+            </div>
+            <div class="form-group">
+              <label for="precio">Precio base (CLP)</label>
+              <input type="number" id="precio" min="0" step="1">
+              <span class="error-message"></span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="descripcion">Descripción (opcional)</label>
+            <textarea id="descripcion" rows="3" maxlength="500"></textarea>
+            <span class="error-message"></span>
+          </div>
+
+          <div class="actions-cell">
+            <button type="submit" class="btn btn-accent">Guardar vuelo</button>
+            <a href="vuelos.html" class="btn btn-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/users.js"></script>
+  <script src="../js/flights.js"></script>
+  <script src="../js/seats.js"></script>
+  <script src="../js/reservations.js"></script>
+  <script src="../js/validations.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    // Al cargar la página: valida sesión admin y prepara el formulario
+    // (opciones de ciudad y fecha mínima seleccionable).
+    document.addEventListener('DOMContentLoaded', () => {
+      const admin = requireAdmin();
+      if (!admin) return;
+      renderAdminSidebar('nuevo');
+
+      const origenSel = document.getElementById('origen');
+      const destinoSel = document.getElementById('destino');
+      CIUDADES.forEach(c => {
+        origenSel.insertAdjacentHTML('beforeend', `<option value="${c}">${c}</option>`);
+        destinoSel.insertAdjacentHTML('beforeend', `<option value="${c}">${c}</option>`);
+      });
+      document.getElementById('fechaSalida').min = todayISO();
+
+      const codigoInput = document.getElementById('codigo');
+      const fechaInput = document.getElementById('fechaSalida');
+      const horaInput = document.getElementById('horaSalida');
+      const capacidadInput = document.getElementById('capacidad');
+      const precioInput = document.getElementById('precio');
+      const descripcionInput = document.getElementById('descripcion');
+
+      // Al enviar el formulario: valida cada campo y, si todo es correcto,
+      // crea el vuelo.
+      document.getElementById('form-vuelo').addEventListener('submit', (e) => {
+        e.preventDefault();
+        let valid = true;
+
+        if (!isRequired(codigoInput.value) || codigoInput.value.trim().length < 3) {
+          setFieldError(codigoInput, 'El código es obligatorio (mínimo 3 caracteres).');
+          valid = false;
+        } else {
+          clearFieldError(codigoInput);
+        }
+
+        if (!isRequired(origenSel.value)) {
+          setFieldError(origenSel, 'Selecciona un origen.');
+          valid = false;
+        } else {
+          clearFieldError(origenSel);
+        }
+
+        if (!isRequired(destinoSel.value)) {
+          setFieldError(destinoSel, 'Selecciona un destino.');
+          valid = false;
+        } else if (destinoSel.value === origenSel.value) {
+          setFieldError(destinoSel, 'El destino debe ser distinto al origen.');
+          valid = false;
+        } else {
+          clearFieldError(destinoSel);
+        }
+
+        if (!isFutureOrTodayDate(fechaInput.value)) {
+          setFieldError(fechaInput, 'La fecha debe ser hoy o una fecha futura.');
+          valid = false;
+        } else {
+          clearFieldError(fechaInput);
+        }
+
+        if (!isRequired(horaInput.value)) {
+          setFieldError(horaInput, 'La hora de salida es obligatoria.');
+          valid = false;
+        } else {
+          clearFieldError(horaInput);
+        }
+
+        if (!isPositiveInteger(capacidadInput.value, 10)) {
+          setFieldError(capacidadInput, 'La capacidad debe ser un número entero de al menos 10.');
+          valid = false;
+        } else {
+          clearFieldError(capacidadInput);
+        }
+
+        if (!isNonNegativeNumber(precioInput.value, 0)) {
+          setFieldError(precioInput, 'El precio debe ser un número igual o mayor a 0.');
+          valid = false;
+        } else {
+          clearFieldError(precioInput);
+        }
+
+        if (descripcionInput.value.length > 500) {
+          setFieldError(descripcionInput, 'La descripción no puede superar los 500 caracteres.');
+          valid = false;
+        } else {
+          clearFieldError(descripcionInput);
+        }
+
+        if (!valid) return;
+
+        addFlight({
+          codigo: codigoInput.value.trim(),
+          origen: origenSel.value,
+          destino: destinoSel.value,
+          fechaSalida: fechaInput.value,
+          horaSalida: horaInput.value,
+          capacidad: capacidadInput.value,
+          precio: precioInput.value,
+          descripcion: descripcionInput.value.trim()
+        });
+
+        showToast('Vuelo creado correctamente.', 'success');
+        setTimeout(() => location.href = 'vuelos.html', 600);
+      });
+    });
+  </script>
+</body>
+</html>

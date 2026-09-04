@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resultados de búsqueda — AERO FJF</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <main>
+    <div class="page">
+      <div class="page-title">
+        <h1>Vuelos disponibles</h1>
+      </div>
+
+      <div class="card">
+        <form class="form-row" id="form-filtro" novalidate style="align-items:end;">
+          <div class="form-group">
+            <label for="origen">Origen</label>
+            <select id="origen"><option value="">Todos</option></select>
+          </div>
+          <div class="form-group">
+            <label for="destino">Destino</label>
+            <select id="destino"><option value="">Todos</option></select>
+          </div>
+          <div class="form-group">
+            <label for="fecha">Fecha de salida</label>
+            <input type="date" id="fecha">
+          </div>
+          <div class="form-group">
+            <button type="submit" class="btn btn-primary btn-block">Filtrar</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Vuelo</th>
+                <th>Origen</th>
+                <th>Destino</th>
+                <th>Salida</th>
+                <th>Llegada aprox.</th>
+                <th>Asientos disp.</th>
+                <th>Precio</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tabla-vuelos"></tbody>
+          </table>
+        </div>
+        <p class="empty-state" id="empty-state" hidden>No se encontraron vuelos con esos criterios.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>AERO FJF &copy; 2026 — Proyecto académico DSY1104</p>
+  </footer>
+
+  <script src="../js/users.js"></script>
+  <script src="../js/flights.js"></script>
+  <script src="../js/seats.js"></script>
+  <script src="../js/reservations.js"></script>
+  <script src="../js/validations.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    // Al cargar la página: prepara los filtros (precargados desde la URL)
+    // y muestra los vuelos que coinciden.
+    document.addEventListener('DOMContentLoaded', () => {
+      const origenSel = document.getElementById('origen');
+      const destinoSel = document.getElementById('destino');
+      const fechaInput = document.getElementById('fecha');
+      const tbody = document.getElementById('tabla-vuelos');
+      const emptyState = document.getElementById('empty-state');
+
+      CIUDADES.forEach(ciudad => {
+        origenSel.insertAdjacentHTML('beforeend', `<option value="${ciudad}">${ciudad}</option>`);
+        destinoSel.insertAdjacentHTML('beforeend', `<option value="${ciudad}">${ciudad}</option>`);
+      });
+
+      origenSel.value = getQueryParam('origen') || '';
+      destinoSel.value = getQueryParam('destino') || '';
+      fechaInput.value = getQueryParam('fecha') || '';
+
+      // Estima la hora de llegada sumando 2 horas a la hora de salida.
+      function horaLlegadaAprox(horaSalida) {
+        const [h, m] = horaSalida.split(':').map(Number);
+        const d = new Date();
+        d.setHours(h + 2, m, 0, 0);
+        return d.toTimeString().slice(0, 5);
+      }
+
+      // Busca vuelos según los filtros actuales y dibuja la tabla de resultados.
+      function render() {
+        const resultados = searchFlights({
+          origen: origenSel.value,
+          destino: destinoSel.value,
+          fecha: fechaInput.value
+        });
+
+        tbody.innerHTML = '';
+        emptyState.hidden = resultados.length > 0;
+
+        resultados.forEach(f => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${f.codigo}</strong></td>
+            <td>${f.origen}</td>
+            <td>${f.destino}</td>
+            <td>${formatDate(f.fechaSalida)} ${f.horaSalida}</td>
+            <td>${horaLlegadaAprox(f.horaSalida)}</td>
+            <td>${f.asientosDisponibles}</td>
+            <td>${formatCLP(f.precio)}</td>
+            <td><button class="btn btn-accent btn-sm" data-id="${f.id}" ${f.asientosDisponibles === 0 ? 'disabled' : ''}>
+              ${f.asientosDisponibles === 0 ? 'Sin cupos' : 'Elegir asientos'}
+            </button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll('button[data-id]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            location.href = `seleccionar-asientos.html?vueloId=${btn.dataset.id}`;
+          });
+        });
+      }
+
+      document.getElementById('form-filtro').addEventListener('submit', (e) => {
+        e.preventDefault();
+        render();
+      });
+
+      render();
+    });
+  </script>
+</body>
+</html>

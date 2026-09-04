@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mis reservas — AERO FJF</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <main>
+    <div class="page">
+      <div class="page-title">
+        <h1>Mis reservas</h1>
+        <a href="../index.html" class="btn btn-primary">Buscar nuevo vuelo</a>
+      </div>
+
+      <div class="card">
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Vuelo</th>
+                <th>Ruta</th>
+                <th>Fecha</th>
+                <th>Asientos</th>
+                <th>Total</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tabla-reservas"></tbody>
+          </table>
+        </div>
+        <p class="empty-state" id="empty-state" hidden>Aún no tienes reservas. ¡Busca tu próximo vuelo!</p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>AERO FJF &copy; 2026 — Proyecto académico DSY1104</p>
+  </footer>
+
+  <script src="../js/users.js"></script>
+  <script src="../js/flights.js"></script>
+  <script src="../js/seats.js"></script>
+  <script src="../js/reservations.js"></script>
+  <script src="../js/validations.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    // Al cargar la página: exige sesión y muestra la tabla de reservas del usuario.
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = requireAuth();
+      if (!user) return;
+
+      const tbody = document.getElementById('tabla-reservas');
+      const emptyState = document.getElementById('empty-state');
+
+      // Dibuja la lista de reservas del usuario y engancha los botones de ver/cancelar.
+      function render() {
+        const reservas = getReservationsByUser(user.email)
+          .sort((a, b) => b.fechaReserva.localeCompare(a.fechaReserva));
+
+        tbody.innerHTML = '';
+        emptyState.hidden = reservas.length > 0;
+
+        reservas.forEach(r => {
+          const vuelo = getFlightById(r.vueloId);
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${r.id}</strong></td>
+            <td>${vuelo ? vuelo.codigo : '—'}</td>
+            <td>${vuelo ? `${vuelo.origen} → ${vuelo.destino}` : '—'}</td>
+            <td>${formatDate(r.fechaReserva)}</td>
+            <td>${r.asientos.join(', ')}</td>
+            <td>${formatCLP(r.totalPagado)}</td>
+            <td><span class="badge ${r.estado === 'confirmada' ? 'badge-success' : 'badge-danger'}">${r.estado}</span></td>
+            <td class="actions-cell">
+              <button class="btn btn-secondary btn-sm" data-ver="${r.id}">Ver detalle</button>
+              ${r.estado === 'confirmada' ? `<button class="btn btn-danger btn-sm" data-cancelar="${r.id}">Cancelar</button>` : ''}
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll('button[data-ver]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            location.href = `pase-abordar.html?reservaId=${encodeURIComponent(btn.dataset.ver)}`;
+          });
+        });
+        tbody.querySelectorAll('button[data-cancelar]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            location.href = `cancelar-reserva.html?reservaId=${encodeURIComponent(btn.dataset.cancelar)}`;
+          });
+        });
+      }
+
+      render();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AERO FJF — Búsqueda de vuelos</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <h1>Vuela a donde quieras</h1>
+        <p>Encuentra y reserva tu próximo vuelo en pocos pasos.</p>
+      </div>
+    </section>
+
+    <div class="container">
+      <form class="search-card search-form" id="form-busqueda" novalidate>
+        <div class="form-group">
+          <label for="origen">Ciudad de origen</label>
+          <select id="origen" name="origen" required>
+            <option value="">Selecciona un origen</option>
+          </select>
+          <span class="error-message"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="destino">Ciudad de destino</label>
+          <select id="destino" name="destino" required>
+            <option value="">Selecciona un destino</option>
+          </select>
+          <span class="error-message"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="fecha">Fecha de salida</label>
+          <input type="date" id="fecha" name="fecha">
+          <span class="error-message"></span>
+        </div>
+
+        <div class="form-group">
+          <button type="submit" class="btn btn-accent btn-block">Buscar vuelos</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="container">
+      <div class="card">
+        <h2>¿Cómo funciona?</h2>
+        <p>1. Busca tu vuelo por origen, destino y fecha.</p>
+        <p>2. Elige tu asiento en el mapa interactivo del avión.</p>
+        <p>3. Agrega equipaje y paga de forma simulada.</p>
+        <p>4. Recibe tu pase de abordar digital al instante.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>AERO FJF &copy; 2026 — Proyecto académico DSY1104</p>
+  </footer>
+
+  <script src="js/users.js"></script>
+  <script src="js/flights.js"></script>
+  <script src="js/seats.js"></script>
+  <script src="js/reservations.js"></script>
+  <script src="js/validations.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    // Al cargar la página: prepara el formulario de búsqueda (opciones de
+    // ciudad y fecha mínima).
+    document.addEventListener('DOMContentLoaded', () => {
+      const origenSel = document.getElementById('origen');
+      const destinoSel = document.getElementById('destino');
+      CIUDADES.forEach(ciudad => {
+        origenSel.insertAdjacentHTML('beforeend', `<option value="${ciudad}">${ciudad}</option>`);
+        destinoSel.insertAdjacentHTML('beforeend', `<option value="${ciudad}">${ciudad}</option>`);
+      });
+
+      const fechaInput = document.getElementById('fecha');
+      fechaInput.min = todayISO();
+
+      // Al enviar el formulario: valida los campos y redirige a los
+      // resultados de búsqueda con los filtros como parámetros de URL.
+      const form = document.getElementById('form-busqueda');
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        let valid = true;
+
+        if (!isRequired(origenSel.value)) {
+          setFieldError(origenSel, 'Selecciona una ciudad de origen.');
+          valid = false;
+        } else {
+          clearFieldError(origenSel);
+        }
+
+        if (!isRequired(destinoSel.value)) {
+          setFieldError(destinoSel, 'Selecciona una ciudad de destino.');
+          valid = false;
+        } else if (destinoSel.value === origenSel.value) {
+          setFieldError(destinoSel, 'El destino debe ser distinto al origen.');
+          valid = false;
+        } else {
+          clearFieldError(destinoSel);
+        }
+
+        if (fechaInput.value && !isFutureOrTodayDate(fechaInput.value)) {
+          setFieldError(fechaInput, 'La fecha no puede estar en el pasado.');
+          valid = false;
+        } else {
+          clearFieldError(fechaInput);
+        }
+
+        if (!valid) return;
+
+        const params = new URLSearchParams();
+        if (origenSel.value) params.set('origen', origenSel.value);
+        if (destinoSel.value) params.set('destino', destinoSel.value);
+        if (fechaInput.value) params.set('fecha', fechaInput.value);
+        location.href = `html/buscar-vuelos.html?${params.toString()}`;
+      });
+    });
+  </script>
+</body>
+</html>

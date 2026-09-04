@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrarse — AERO FJF</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <main>
+    <div class="page-narrow">
+      <div class="card">
+        <h1>Crear cuenta</h1>
+        <p class="subtitle">Regístrate para reservar tus vuelos.</p>
+
+        <form id="form-registro" novalidate>
+          <div class="form-group">
+            <label for="nombre">Nombre completo</label>
+            <input type="text" id="nombre" name="nombre" required>
+            <span class="error-message"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="email">Correo electrónico</label>
+            <input type="email" id="email" name="email" maxlength="100" required>
+            <span class="error-message"></span>
+            <span class="help-text">Dominios permitidos: @gmail.com, @duoc.cl, @profesor.duoc.cl</span>
+          </div>
+
+          <div class="form-group">
+            <label for="contraseña">Contraseña</label>
+            <input type="password" id="contraseña" name="contraseña" required>
+            <span class="error-message"></span>
+            <span class="help-text">Entre 4 y 10 caracteres.</span>
+          </div>
+
+          <div class="form-group">
+            <label for="confirmar">Confirmar contraseña</label>
+            <input type="password" id="confirmar" name="confirmar" required>
+            <span class="error-message"></span>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block">Registrarme</button>
+        </form>
+
+        <p style="margin-top:16px;">¿Ya tienes cuenta? <a href="login.html">Inicia sesión</a></p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>AERO FJF &copy; 2026 — Proyecto académico DSY1104</p>
+  </footer>
+
+  <script src="../js/users.js"></script>
+  <script src="../js/flights.js"></script>
+  <script src="../js/seats.js"></script>
+  <script src="../js/reservations.js"></script>
+  <script src="../js/validations.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    // Al cargar la página: si ya hay sesión, redirige; si no, prepara el
+    // formulario de registro con validación en tiempo real.
+    document.addEventListener('DOMContentLoaded', () => {
+      if (getCurrentUser()) {
+        location.href = 'historial-reservas.html';
+        return;
+      }
+
+      const nombreInput = document.getElementById('nombre');
+      const emailInput = document.getElementById('email');
+      const passInput = document.getElementById('contraseña');
+      const confirmInput = document.getElementById('confirmar');
+      const form = document.getElementById('form-registro');
+
+      // Limpia el error del nombre mientras el usuario escribe.
+      nombreInput.addEventListener('input', () => {
+        clearFieldError(nombreInput);
+      });
+      // Valida el correo al salir del campo (dominio permitido).
+      emailInput.addEventListener('blur', () => {
+        if (emailInput.value && !isValidEmail(emailInput.value)) {
+          setFieldError(emailInput, 'Correo inválido. Usa @gmail.com, @duoc.cl o @profesor.duoc.cl (máx. 100 caracteres).');
+        } else {
+          clearFieldError(emailInput);
+        }
+      });
+      // Valida el largo de la contraseña al salir del campo.
+      passInput.addEventListener('blur', () => {
+        if (passInput.value && !isValidPassword(passInput.value)) {
+          setFieldError(passInput, 'La contraseña debe tener entre 4 y 10 caracteres.');
+        } else {
+          clearFieldError(passInput);
+        }
+      });
+
+      // Al enviar el formulario: valida todos los campos y, si son
+      // correctos, registra al nuevo usuario.
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        let valid = true;
+
+        if (!isRequired(nombreInput.value)) {
+          setFieldError(nombreInput, 'El nombre es obligatorio.');
+          valid = false;
+        } else {
+          clearFieldError(nombreInput);
+        }
+
+        if (!isValidEmail(emailInput.value)) {
+          setFieldError(emailInput, 'Correo inválido. Usa @gmail.com, @duoc.cl o @profesor.duoc.cl.');
+          valid = false;
+        } else {
+          clearFieldError(emailInput);
+        }
+
+        if (!isValidPassword(passInput.value)) {
+          setFieldError(passInput, 'La contraseña debe tener entre 4 y 10 caracteres.');
+          valid = false;
+        } else {
+          clearFieldError(passInput);
+        }
+
+        if (confirmInput.value !== passInput.value || !isRequired(confirmInput.value)) {
+          setFieldError(confirmInput, 'Las contraseñas no coinciden.');
+          valid = false;
+        } else {
+          clearFieldError(confirmInput);
+        }
+
+        if (!valid) return;
+
+        try {
+          registerUser({ nombre: nombreInput.value, email: emailInput.value, contraseña: passInput.value });
+          showToast('Cuenta creada con éxito. Ahora puedes iniciar sesión.', 'success');
+          setTimeout(() => { location.href = 'login.html'; }, 800);
+        } catch (err) {
+          setFieldError(emailInput, err.message);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
